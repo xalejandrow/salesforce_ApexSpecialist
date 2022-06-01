@@ -1,4 +1,4 @@
-public with sharing class WarehouseCalloutService {
+public with sharing class WarehouseCalloutService implements Queueable{
 
     private static final String WAREHOUSE_URL = 'https://th-superbadge-apex.herokuapp.com/equipment';    
     
@@ -28,9 +28,8 @@ public with sharing class WarehouseCalloutService {
     }
     
 
-    public static Boolean updateInventory(){
-
-        try {
+    @future(callout=true)
+    public static void updateInventory(){
             
             List<Object> jsonResult = getJsonData();
             List<Product2> newEquipment = new List<Product2>();
@@ -38,6 +37,7 @@ public with sharing class WarehouseCalloutService {
             for(Object js :jsonResult){
                 Map<String,Object> jsMap = (Map<String,Object>)js;
                 Product2 p = new Product2();
+                p.Name = (String) jsMap.get('name');
                 p.Replacement_Part__c = true;
                 p.Current_Inventory__c = (Integer)jsMap.get('quantity');
                 p.Maintenance_Cycle__c = (Integer)jsMap.get('maintenanceperiod');
@@ -50,11 +50,12 @@ public with sharing class WarehouseCalloutService {
             }
 
             System.debug('newEquipment: '+newEquipment);
+            upsert newEquipment Warehouse_SKU__c;
 
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+    }
+
+    public void execute(QueueableContext context){
+        updateInventory();
     }
     
     
